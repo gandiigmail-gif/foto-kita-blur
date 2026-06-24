@@ -6,20 +6,37 @@
 <title>Play Games</title>
 
 <style>
-body{
+
+*{
     margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
     background:#111;
-    color:white;
+    overflow:hidden;
     font-family:Arial,sans-serif;
-    text-align:center;
 }
 
 #startPage{
-    height:100vh;
+    position:fixed;
+    inset:0;
     display:flex;
     flex-direction:column;
     justify-content:center;
     align-items:center;
+    background:#111;
+    color:white;
+    z-index:100;
+}
+
+#startBtn{
+    padding:15px 40px;
+    font-size:24px;
+    border:none;
+    border-radius:12px;
+    cursor:pointer;
 }
 
 #cameraPage{
@@ -36,108 +53,206 @@ body{
     filter:blur(18px);
 }
 
-button{
-    padding:15px 30px;
-    font-size:22px;
-    border:none;
-    border-radius:10px;
+.cat{
+    position:fixed;
+    font-size:55px;
+    z-index:20;
+    user-select:none;
+}
+
+.top-left{
+    top:15px;
+    left:15px;
+}
+
+.top-right{
+    top:15px;
+    right:15px;
+}
+
+.bottom-left{
+    bottom:15px;
+    left:15px;
+}
+
+.bottom-right{
+    bottom:15px;
+    right:15px;
+}
+
+.controls{
+    position:fixed;
+    top:50%;
+    left:50%;
+    transform:translateX(-50%);
+    z-index:30;
+    background:rgba(0,0,0,.5);
+    padding:10px;
+    border-radius:12px;
+}
+
+.controls button{
+    padding:10px 20px;
+    margin:5px;
     cursor:pointer;
 }
 
-#status{
-    position:fixed;
-    top:15px;
-    left:50%;
-    transform:translateX(-50%);
-    background:rgba(0,0,0,.6);
-    padding:10px 20px;
-    border-radius:10px;
-    z-index:999;
+.controls input{
+    color:white;
 }
+
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-</head>
 
+</head>
 <body>
 
 <div id="startPage">
-    <h1>🎮 Play Games</h1>
-    <button id="playBtn">Start</button>
+    <h1 style="margin-bottom:20px;">🎮 Play Games</h1>
+    <button id="startBtn">Start</button>
 </div>
 
 <div id="cameraPage">
+
     <video id="video" autoplay playsinline muted></video>
-    <div id="status">Menunggu tangan...</div>
+
+    <div class="cat top-left">🐱</div>
+    <div class="cat top-right">🐱</div>
+    <div class="cat bottom-left">🐱</div>
+    <div class="cat bottom-right">🐱</div>
+
+    <div class="controls">
+
+        <input type="file"
+               id="audioFile"
+               accept="audio/*">
+
+        <button id="playMusic">
+            ▶ Play
+        </button>
+
+        <button id="pauseMusic">
+            ⏸ Pause
+        </button>
+
+    </div>
+
 </div>
+
+<audio id="bgm"></audio>
 
 <script>
 
-const playBtn=document.getElementById("playBtn");
-const video=document.getElementById("video");
-const status=document.getElementById("status");
+const startBtn = document.getElementById("startBtn");
+const video = document.getElementById("video");
+const bgm = document.getElementById("bgm");
 
-playBtn.onclick=async()=>{
+const audioFile =
+document.getElementById("audioFile");
 
-    document.getElementById("startPage").style.display="none";
-    document.getElementById("cameraPage").style.display="block";
+audioFile.addEventListener("change",()=>{
+
+    const file = audioFile.files[0];
+
+    if(file){
+
+        bgm.src =
+        URL.createObjectURL(file);
+
+    }
+
+});
+
+document.getElementById("playMusic")
+.addEventListener("click",()=>{
+
+    bgm.play();
+
+});
+
+document.getElementById("pauseMusic")
+.addEventListener("click",()=>{
+
+    bgm.pause();
+
+});
+
+startBtn.onclick = async()=>{
+
+    document.getElementById("startPage")
+    .style.display="none";
+
+    document.getElementById("cameraPage")
+    .style.display="block";
 
     try{
 
-        const stream=await navigator.mediaDevices.getUserMedia({
+        const stream =
+        await navigator.mediaDevices
+        .getUserMedia({
+
             video:{
                 facingMode:"user"
             }
+
         });
 
-        video.srcObject=stream;
+        video.srcObject = stream;
 
         startTracking();
 
-    }catch(err){
+    }catch(e){
 
         alert("Izin kamera ditolak");
 
     }
+
 };
 
 function fingerUp(tip,pip){
+
     return tip.y < pip.y;
+
 }
 
 function isPeace(hand){
 
     const indexUp =
-        fingerUp(hand[8],hand[6]);
+    fingerUp(hand[8],hand[6]);
 
     const middleUp =
-        fingerUp(hand[12],hand[10]);
+    fingerUp(hand[12],hand[10]);
 
     const ringUp =
-        fingerUp(hand[16],hand[14]);
+    fingerUp(hand[16],hand[14]);
 
     const pinkyUp =
-        fingerUp(hand[20],hand[18]);
+    fingerUp(hand[20],hand[18]);
 
-    const distance =
-        Math.abs(hand[8].x - hand[12].x);
+    const gap =
+    Math.abs(hand[8].x-hand[12].x);
 
     return (
         indexUp &&
         middleUp &&
         !ringUp &&
         !pinkyUp &&
-        distance > 0.05
+        gap > 0.05
     );
+
 }
 
 function startTracking(){
 
-    const hands=new Hands({
+    const hands =
+    new Hands({
 
         locateFile:(file)=>{
+
             return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+
         }
 
     });
@@ -153,35 +268,36 @@ function startTracking(){
 
     hands.onResults((results)=>{
 
-        let peace=false;
+        let blur=false;
 
         if(results.multiHandLandmarks){
 
             for(const hand of results.multiHandLandmarks){
 
                 if(isPeace(hand)){
-                    peace=true;
+
+                    blur=true;
+
                 }
 
             }
 
         }
 
-        if(peace){
+        if(blur){
 
             video.classList.add("blur");
-            status.innerHTML="✌️ Terdeteksi - Blur Aktif";
 
         }else{
 
             video.classList.remove("blur");
-            status.innerHTML="📷 Normal";
 
         }
 
     });
 
-    const camera=new Camera(video,{
+    const camera =
+    new Camera(video,{
 
         onFrame:async()=>{
 
