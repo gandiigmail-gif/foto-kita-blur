@@ -8,9 +8,9 @@
 <style>
 body{
     margin:0;
-    font-family:Arial,sans-serif;
     background:#111;
     color:white;
+    font-family:Arial,sans-serif;
     text-align:center;
 }
 
@@ -24,171 +24,169 @@ body{
 
 #cameraPage{
     display:none;
-    padding-top:20px;
 }
 
-h1{
-    font-size:3rem;
+#video{
+    width:100vw;
+    height:100vh;
+    object-fit:cover;
+}
+
+.blur{
+    filter:blur(18px);
 }
 
 button{
-    padding:15px 35px;
-    font-size:20px;
+    padding:15px 30px;
+    font-size:22px;
     border:none;
     border-radius:10px;
     cursor:pointer;
 }
 
-#video{
-    width:90%;
-    max-width:800px;
-    border-radius:12px;
-}
-
-.blur{
-    filter: blur(15px);
-}
-
 #status{
-    margin-top:20px;
-    font-size:22px;
-    font-weight:bold;
+    position:fixed;
+    top:15px;
+    left:50%;
+    transform:translateX(-50%);
+    background:rgba(0,0,0,.6);
+    padding:10px 20px;
+    border-radius:10px;
+    z-index:999;
 }
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-
 </head>
+
 <body>
 
 <div id="startPage">
     <h1>🎮 Play Games</h1>
-    <button id="playBtn">Start Game</button>
+    <button id="playBtn">Start</button>
 </div>
 
 <div id="cameraPage">
-    <video id="video" autoplay playsinline></video>
-    <div id="status">Menunggu gesture ✌️</div>
+    <video id="video" autoplay playsinline muted></video>
+    <div id="status">Menunggu tangan...</div>
 </div>
 
 <script>
 
-const playBtn = document.getElementById("playBtn");
-const video = document.getElementById("video");
-const statusText = document.getElementById("status");
+const playBtn=document.getElementById("playBtn");
+const video=document.getElementById("video");
+const status=document.getElementById("status");
 
-playBtn.addEventListener("click", async () => {
+playBtn.onclick=async()=>{
 
-    document.getElementById("startPage").style.display = "none";
-    document.getElementById("cameraPage").style.display = "block";
+    document.getElementById("startPage").style.display="none";
+    document.getElementById("cameraPage").style.display="block";
 
     try{
 
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video:true,
-            audio:false
+        const stream=await navigator.mediaDevices.getUserMedia({
+            video:{
+                facingMode:"user"
+            }
         });
 
-        video.srcObject = stream;
+        video.srcObject=stream;
 
-        startHandTracking();
+        startTracking();
 
     }catch(err){
 
-        alert("Izin kamera ditolak.");
+        alert("Izin kamera ditolak");
 
     }
-});
+};
 
-function isPeaceSign(landmarks){
+function fingerUp(tip,pip){
+    return tip.y < pip.y;
+}
 
-    const indexTip = landmarks[8];
-    const indexPip = landmarks[6];
-
-    const middleTip = landmarks[12];
-    const middlePip = landmarks[10];
-
-    const ringTip = landmarks[16];
-    const ringPip = landmarks[14];
-
-    const pinkyTip = landmarks[20];
-    const pinkyPip = landmarks[18];
+function isPeace(hand){
 
     const indexUp =
-        indexTip.y < indexPip.y;
+        fingerUp(hand[8],hand[6]);
 
     const middleUp =
-        middleTip.y < middlePip.y;
+        fingerUp(hand[12],hand[10]);
 
-    const ringDown =
-        ringTip.y > ringPip.y;
+    const ringUp =
+        fingerUp(hand[16],hand[14]);
 
-    const pinkyDown =
-        pinkyTip.y > pinkyPip.y;
+    const pinkyUp =
+        fingerUp(hand[20],hand[18]);
+
+    const distance =
+        Math.abs(hand[8].x - hand[12].x);
 
     return (
         indexUp &&
         middleUp &&
-        ringDown &&
-        pinkyDown
+        !ringUp &&
+        !pinkyUp &&
+        distance > 0.05
     );
 }
 
-function startHandTracking(){
+function startTracking(){
 
-    const hands = new Hands({
+    const hands=new Hands({
 
-        locateFile: (file) => {
+        locateFile:(file)=>{
             return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
         }
 
     });
 
     hands.setOptions({
+
         maxNumHands:1,
         modelComplexity:1,
-        minDetectionConfidence:0.7,
-        minTrackingConfidence:0.7
+        minDetectionConfidence:0.5,
+        minTrackingConfidence:0.5
+
     });
 
     hands.onResults((results)=>{
 
-        let detected = false;
+        let peace=false;
 
         if(results.multiHandLandmarks){
 
-            for(const landmarks of results.multiHandLandmarks){
+            for(const hand of results.multiHandLandmarks){
 
-                if(isPeaceSign(landmarks)){
-                    detected = true;
+                if(isPeace(hand)){
+                    peace=true;
                 }
 
             }
+
         }
 
-        if(detected){
+        if(peace){
 
             video.classList.add("blur");
-            statusText.innerHTML =
-            "✌️ Gesture Terdeteksi - Blur Aktif";
+            status.innerHTML="✌️ Terdeteksi - Blur Aktif";
 
         }else{
 
             video.classList.remove("blur");
-            statusText.innerHTML =
-            "Tidak Ada ✌️ - Tampilan Normal";
+            status.innerHTML="📷 Normal";
 
         }
 
     });
 
-    const camera = new Camera(video,{
+    const camera=new Camera(video,{
 
-        onFrame: async ()=>{
+        onFrame:async()=>{
 
             await hands.send({
-                image: video
+                image:video
             });
 
         },
@@ -199,6 +197,7 @@ function startHandTracking(){
     });
 
     camera.start();
+
 }
 
 </script>
